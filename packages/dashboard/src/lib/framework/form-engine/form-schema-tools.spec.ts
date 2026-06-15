@@ -2,6 +2,7 @@ import { FieldInfo } from '@/vdb/framework/document-introspection/get-document-s
 import { describe, expect, it } from 'vitest';
 
 import {
+    applyNullableSelectCustomFieldDefaults,
     createFormSchemaFromFields,
     getDefaultValuesFromFields,
     getZodTypeFromField,
@@ -424,7 +425,7 @@ describe('form-schema-tools', () => {
             } catch (error: any) {
                 expect(error.issues).toBeDefined();
                 expect(error.issues.length).toBeGreaterThan(0);
-                expect(error.issues[0].message).toContain('Date must be after');
+                expect(error.errors[0].message).toContain('Date must be after');
             }
 
             // Test with Date object as well
@@ -434,7 +435,7 @@ describe('form-schema-tools', () => {
             } catch (error: any) {
                 expect(error.issues).toBeDefined();
                 expect(error.issues.length).toBeGreaterThan(0);
-                expect(error.issues[0].message).toContain('Date must be after');
+                expect(error.errors[0].message).toContain('Date must be after');
             }
         });
     });
@@ -642,6 +643,44 @@ describe('form-schema-tools', () => {
             const fields: FieldInfo[] = [createMockField('value', type, true)];
             const defaults = getDefaultValuesFromFields(fields, 'en');
             expect(defaults.value).toBe(expected);
+        });
+
+        it('nullable string custom field with options should default to null', () => {
+            const fields: FieldInfo[] = [
+                createMockField('customFields', 'Object', false, false, [
+                    createMockField('featureType', 'String', true),
+                ]),
+            ];
+            const customFieldConfigs = [
+                {
+                    name: 'featureType',
+                    type: 'string',
+                    nullable: true,
+                    readonly: false,
+                    list: false,
+                    options: [{ value: 'standard' }, { value: 'premium' }],
+                },
+            ] as any[];
+
+            const defaults = getDefaultValuesFromFields(fields, 'en', customFieldConfigs);
+            expect(defaults.customFields.featureType).toBeNull();
+        });
+
+        it('applyNullableSelectCustomFieldDefaults should normalize empty string to null', () => {
+            const values = { customFields: { featureType: '' } };
+            const customFieldConfigs = [
+                {
+                    name: 'featureType',
+                    type: 'string',
+                    nullable: true,
+                    readonly: false,
+                    list: false,
+                    options: [{ value: 'a' }],
+                },
+            ] as any[];
+
+            const result = applyNullableSelectCustomFieldDefaults(values, customFieldConfigs);
+            expect(result.customFields.featureType).toBeNull();
         });
     });
 
